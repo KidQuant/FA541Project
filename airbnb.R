@@ -12,9 +12,6 @@ library(dplyr)
 library(fitdistrplus)
 library(knitr)
 
-# Set working directory (update this to your path)
-setwd("C:/Applied Statistics/Assignment - 3/Assignment 3 - Applied Statistics/Project Assignment")
-
 # Load the dataset
 airbnb.newyork <- read.csv("listings.csv")
 
@@ -27,27 +24,6 @@ airbnb.newyork <- airbnb.newyork %>%
 
 # Remove rows with missing prices
 airbnb.newyork <- airbnb.newyork %>% filter(!is.na(price))
-
-# Winsorization function to fix outliers
-winsorize <- function(x) {
-  Q1 <- quantile(x, 0.25, na.rm = TRUE)
-  Q3 <- quantile(x, 0.75, na.rm = TRUE)
-  IQR <- Q3 - Q1
-  
-  lower_threshold <- Q1 - 1.5 * IQR
-  upper_threshold <- Q3 + 1.5 * IQR
-  
-  x[x < lower_threshold] <- lower_threshold
-  x[x > upper_threshold] <- upper_threshold
-  
-  return(x)
-}
-
-# Apply Winsorization to relevant variables
-variables_to_fix <- c("price", "reviews_per_month", "minimum_nights", "number_of_reviews", "availability_365")
-for (var in variables_to_fix) {
-  airbnb.newyork[[var]] <- winsorize(airbnb.newyork[[var]])
-}
 
 # 1. Exploratory Data Analysis (EDA)
 
