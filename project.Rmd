@@ -1,0 +1,23 @@
+---
+title: "FA541Project"
+author: "Andre Sealy"
+date: "2024-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(skimr)
+library(jsonlite)
+library(scales)
+library(tidymodels)
+library(lubridate)
+```
+
+## R Markdown
+
+```{r}
+data <- read.csv('listings.csv')
+head(data)
+```
+
