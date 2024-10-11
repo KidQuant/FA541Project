@@ -279,8 +279,8 @@ ggplot(accept,
 
 ```{r}
 # Create a dataframe for price and room type
-room_type_price <- data |>
-  select(id, price, room_type)
+#room_type_price <- data |>
+#  select(id, price, room_type)
 
 # create a dataframe for price and ratings
 ratings_price <- data |>
@@ -322,3 +322,4 @@ df_location_price |>
   scale_x_continuous(labels = label_dollar(scale_cut = cut_short_scale()))
 ```
 
+# New changes to repo
