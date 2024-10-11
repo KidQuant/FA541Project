@@ -1,0 +1,324 @@
+---
+title: "FA541Project"
+author: "Andre Sealy"
+date: "2024-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(skimr)
+library(jsonlite)
+library(scales)
+library(tidymodels)
+library(lubridate)
+```
+
+## R Markdown
+
+```{r}
+data <- read.csv('listings.csv')
+head(data)
+```
+
+```{r}
+no_reviews <- data |>
+  filter(is.na(first_review))
+```
+
+
+```{r}
+data <- data |>
+  mutate(price = parse_number(price))
+```
+
+### Cleaning Lat and Long
+
+```{r}
+df_location_price <- data |>
+  select(
+    latitude, longitude, neighbourhood, neighbourhood_cleansed,
+    neighbourhood_group_cleansed, price
+  ) |>
+  mutate(numb_dollar = as.numeric(gsub("\\$|,", "", price)))
+df_location_price
+```
+
+### Availability
+
+```{r}
+airbnb_data_availability <- data |>
+  mutate(month_year = floor_date(as.Date(last_review), unit = "month")) |>
+  select(id, price, availability_30, availability_60, availability_90, availability_365, month_year)
+```
+
+### Amentities
+
+```{r}
+amenities_df <- data |>
+  # Create subset of Airbnb data pertaining to amenities
+  select(id, amenities) |>
+  # Replace any occurrences of square brackets with empty string
+  mutate(amenities = gsub("\\[|\\]", "", amenities)) |>
+  # Split the list by comma and make separate rows
+  separate_rows(amenities, sep = ", ") |>
+  # Unnest the list
+  unnest(amenities)
+amenities_df
+```
+
+###  Writing for future purposes
+
+```{r}
+write.csv(amenities_df, "amenities_data.csv", row.names=FALSE)
+```
+
+### WIFI
+
+```{r}
+fast_wifi <- amenities_df |>
+  mutate(fast_wifi = str_detect(amenities, regex("fast wifi", ignore_case = TRUE)))
+fast_wifi
+```
+```{r}
+# Create character vector of amenities of interest
+essentials <- c("wifi", "parking", "dryer", "washer", "kitchen")
+
+# Duplicate amenities_df
+essential_amenities_df <- data.frame(amenities_df)
+
+# Iterate over amenities in essentials
+for (amenity in essentials) {
+  essential_amenities_df <- essential_amenities_df |>
+    # Create boolean column
+    mutate(!!amenity :=
+      str_detect(
+        essential_amenities_df$amenities,
+        regex(amenity, ignore_case = TRUE)
+      ))
+}
+
+# Group by listing
+listing_esential_amenitites <- essential_amenities_df |>
+  group_by(id) |>
+  summarise(
+    wifi = any(wifi),
+    parking = any(parking),
+    dryer = any(dryer),
+    washer = any(washer),
+    kitchen = any(kitchen)
+  ) |>
+  pivot_longer(
+    cols = -id,
+    names_to = "amenities",
+    values_to = "listed"
+  )
+listing_esential_amenitites
+```
+
+#Host Characteristics
+
+```{r}
+# Dataframe with all variables to do with host characteristics
+host_char <- data |>
+  select(
+    host_id,
+    host_is_superhost,
+    host_identity_verified,
+    host_has_profile_pic,
+    host_since,
+    host_response_time,
+    host_response_rate,
+    host_acceptance_rate,
+    host_listings_count,
+    review_scores_communication,
+    price
+  )
+host_char
+```
+
+# Host listings and the pricing
+
+
+```{r}
+# Data frame with each host, their total num of listings
+# and their average price
+host_list <- host_char |>
+  select(host_id, host_listings_count, price) |>
+  group_by(host_id) |>
+  mutate(avg_price_host = mean(price)) |>
+  distinct(host_id, .keep_all = TRUE) |>
+  na.omit(host_listings_count)
+
+host_list
+```
+
+```{r}
+# Data frame with each host, if they are a super host,
+# if they have a profile picture, and if their identity is verified
+superhost <- host_char |>
+  select(
+    host_id,
+    host_is_superhost,
+    host_identity_verified,
+    host_has_profile_pic
+  ) |>
+  distinct(host_id, .keep_all = TRUE) |>
+  mutate(
+    host_is_superhost = if_else(host_is_superhost == "TRUE", 1, 0),
+    host_identity_verified = if_else(host_identity_verified == "TRUE", 1, 0),
+    host_has_profile_pic = if_else(host_has_profile_pic == "TRUE", 1, 0)
+  )
+superhost
+```
+### Hosting communication, rating and pricing
+
+```{r}
+# Data frame with host's communication rating and price
+rating <- host_char |>
+  select(
+    host_id,
+    review_scores_communication,
+    price
+  )
+
+# Find average price of listings per host
+host_rating <- host_char |>
+  select(host_id,
+         review_scores_communication,
+         price) |>
+
+# Find average price of listings per host
+  group_by(host_id) |>
+  mutate(price = mean(price)) |>
+  # Remove repeat of same hosts
+  distinct(host_id, .keep_all = TRUE) |>
+  na.omit(rating)
+
+host_rating
+```
+### Acceptance rate, price, and super host relationship
+
+```{r}
+accept <- host_char |>
+  select(
+    host_id,
+    host_acceptance_rate,
+    price,
+    host_is_superhost
+  ) |>
+  group_by(host_id) |>
+  mutate(price = mean(price)) |>
+  distinct(host_id, .keep_all = TRUE)
+
+# Make character N/A a logical NA value
+accept[accept == "N/A"] <- NA
+
+# Omit NA values
+accept <- accept |>
+  na.omit(host_acceptance_rate) |>
+  # Change acceptance rate to numbers
+  mutate(
+    host_acceptance_rate = substr(host_acceptance_rate, 0, nchar(host_acceptance_rate)),
+    host_acceptance_rate = parse_number(host_acceptance_rate)
+  ) |>
+  # Change super host column to categorical variable
+  mutate(host_is_superhost = if_else(host_is_superhost == "TRUE", "Superhosts", "Not Superhost"))
+
+# Plot listings versus price dataset
+ggplot(host_list,
+  mapping = aes(x = avg_price_host, y = host_listings_count)
+) +
+  geom_point() +
+  theme_minimal() +
+  scale_x_continuous(limits = quantile(host_list$price, c(0.1, 0.95))) +
+  labs(
+    title = "# of listings vs average price",
+    x = "Average price (per host)",
+    y = "# of listings (per host)"
+  )
+  
+```
+
+```{r}
+# Plot host rating and price of listings
+ggplot(rating,
+  mapping = aes(x = price, y = review_scores_communication)
+) +
+  geom_point() +
+  theme_minimal() +
+  scale_x_continuous(limits = quantile(rating$price, c(0.1, 0.95), na.rm = TRUE)) +
+  labs(
+    title = "Host communication rating vs price",
+    x = "Average price (per host)",
+    y = "Host acceptance rate"
+  )
+```
+
+```{r}
+# Plot acceptance rate and price and facet by super hosts
+ggplot(accept,
+  mapping = aes(x = price, y = host_acceptance_rate)
+) +
+  geom_col(width = 15, fill = "lightblue") +
+  facet_wrap(vars(superhost)) +
+  theme_bw() +
+  scale_x_continuous(
+    limits = quantile(accept$price, c(0.1, 0.95)),
+    labels = label_dollar()
+  ) +
+  scale_y_continuous(labels = label_percent(scale = .001)) +
+  labs(
+    title = "Host acceptance rate vs price",
+    x = "Average price (per host)",
+    y = "Host acceptance rate"
+  )
+```
+
+### Listing characteristics
+
+```{r}
+# Create a dataframe for price and room type
+room_type_price <- data |>
+  select(id, price, room_type)
+
+# create a dataframe for price and ratings
+ratings_price <- data |>
+  select(id, price, review_scores_rating) |>
+  drop_na()
+
+# Create a dataframe for price and number of bedrooms
+bedroom_price <- data |>
+  select(id, price, bedrooms) |>
+  drop_na()
+```
+
+
+```{r}
+# Exploratory
+df_location_price |>
+  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc = TRUE)) |>
+  ggplot(aes(neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) +
+  geom_bar(show.legend = FALSE) +
+  labs(
+    x = "New York neighborhoods",
+    y = "Count",
+    title = "Priced Airbnb listing count within New York neighborhoods"
+  ) +
+  theme_minimal()
+
+```
+```{r}
+df_location_price |>
+  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc = TRUE)) |>
+  ggplot(aes(log(numb_dollar), neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) +
+  geom_boxplot(show.legend = FALSE) +
+  theme_minimal() +
+  labs(
+    y = "New York neighborhoods",
+    x = "(logarithmic) Listing prices",
+    title = "Airbnb listing prices within New York neighborhoods"
+  ) +
+  scale_x_continuous(labels = label_dollar(scale_cut = cut_short_scale()))
+```
+
