@@ -1,5 +1,5 @@
 ---
-title: "FA541Project"
+title: "Data Cleaning"
 author: "Andre Sealy"
 date: "2024-10-11"
 output: html_document
@@ -17,7 +17,7 @@ library(lubridate)
 ## R Markdown
 
 ```{r}
-data <- read.csv('listings.csv')
+data <- read.csv('data/listings.csv')
 head(data)
 ```
 
@@ -41,7 +41,7 @@ df_location_price <- data |>
     neighbourhood_group_cleansed, price
   ) |>
   mutate(numb_dollar = as.numeric(gsub("\\$|,", "", price)))
-df_location_price
+write.csv(df_location_price, file='data/location_price.csv', row.names=FALSE)
 ```
 
 ### Availability
@@ -50,6 +50,8 @@ df_location_price
 airbnb_data_availability <- data |>
   mutate(month_year = floor_date(as.Date(last_review), unit = "month")) |>
   select(id, price, availability_30, availability_60, availability_90, availability_365, month_year)
+
+write.csv(airbnb_data_availability, file='data/airbnb_data_availability.csv', row.names = FALSE)
 ```
 
 ### Amentities
@@ -65,12 +67,14 @@ amenities_df <- data |>
   # Unnest the list
   unnest(amenities)
 amenities_df
+
+write.csv(amenities_df, file = 'data/amenities.csv', row.names = FALSE)
 ```
 
 ###  Writing for future purposes
 
 ```{r}
-write.csv(amenities_df, "amenities_data.csv", row.names=FALSE)
+write.csv(amenities_df, "data/amenities_data.csv", row.names=FALSE)
 ```
 
 ### WIFI
@@ -80,6 +84,7 @@ fast_wifi <- amenities_df |>
   mutate(fast_wifi = str_detect(amenities, regex("fast wifi", ignore_case = TRUE)))
 fast_wifi
 ```
+
 ```{r}
 # Create character vector of amenities of interest
 essentials <- c("wifi", "parking", "dryer", "washer", "kitchen")
@@ -114,6 +119,8 @@ listing_esential_amenitites <- essential_amenities_df |>
     values_to = "listed"
   )
 listing_esential_amenitites
+
+write.csv(listing_esential_amenitites, "data/listing_essential_amenities.csv", row.names = FALSE)
 ```
 
 #Host Characteristics
@@ -135,12 +142,7 @@ host_char <- data |>
     price
   )
 host_char
-```
 
-# Host listings and the pricing
-
-
-```{r}
 # Data frame with each host, their total num of listings
 # and their average price
 host_list <- host_char |>
@@ -151,7 +153,11 @@ host_list <- host_char |>
   na.omit(host_listings_count)
 
 host_list
+
+write.csv(host_list, file='data/host_list.csv', row.names = FALSE)
+write.csv(host_char, file='data/host_char.csv', row.names=FALSE)
 ```
+
 
 ```{r}
 # Data frame with each host, if they are a super host,
@@ -169,7 +175,8 @@ superhost <- host_char |>
     host_identity_verified = if_else(host_identity_verified == "TRUE", 1, 0),
     host_has_profile_pic = if_else(host_has_profile_pic == "TRUE", 1, 0)
   )
-superhost
+
+write.csv(superhost, file = 'data/superhost.csv', row.names = FALSE)
 ```
 ### Hosting communication, rating and pricing
 
@@ -196,7 +203,10 @@ host_rating <- host_char |>
   na.omit(rating)
 
 host_rating
+
+write.csv(host_rating, file='data/host_rating.csv', row.names=FALSE)
 ```
+
 ### Acceptance rate, price, and super host relationship
 
 ```{r}
@@ -239,87 +249,3 @@ ggplot(host_list,
   )
   
 ```
-
-```{r}
-# Plot host rating and price of listings
-ggplot(rating,
-  mapping = aes(x = price, y = review_scores_communication)
-) +
-  geom_point() +
-  theme_minimal() +
-  scale_x_continuous(limits = quantile(rating$price, c(0.1, 0.95), na.rm = TRUE)) +
-  labs(
-    title = "Host communication rating vs price",
-    x = "Average price (per host)",
-    y = "Host acceptance rate"
-  )
-```
-
-```{r}
-# Plot acceptance rate and price and facet by super hosts
-ggplot(accept,
-  mapping = aes(x = price, y = host_acceptance_rate)
-) +
-  geom_col(width = 15, fill = "lightblue") +
-  facet_wrap(vars(superhost)) +
-  theme_bw() +
-  scale_x_continuous(
-    limits = quantile(accept$price, c(0.1, 0.95)),
-    labels = label_dollar()
-  ) +
-  scale_y_continuous(labels = label_percent(scale = .001)) +
-  labs(
-    title = "Host acceptance rate vs price",
-    x = "Average price (per host)",
-    y = "Host acceptance rate"
-  )
-```
-
-### Listing characteristics
-
-```{r}
-# Create a dataframe for price and room type
-#room_type_price <- data |>
-#  select(id, price, room_type)
-
-# create a dataframe for price and ratings
-ratings_price <- data |>
-  select(id, price, review_scores_rating) |>
-  drop_na()
-
-# Create a dataframe for price and number of bedrooms
-bedroom_price <- data |>
-  select(id, price, bedrooms) |>
-  drop_na()
-```
-
-
-```{r}
-# Exploratory
-df_location_price |>
-  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc = TRUE)) |>
-  ggplot(aes(neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) +
-  geom_bar(show.legend = FALSE) +
-  labs(
-    x = "New York neighborhoods",
-    y = "Count",
-    title = "Priced Airbnb listing count within New York neighborhoods"
-  ) +
-  theme_minimal()
-
-```
-```{r}
-df_location_price |>
-  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc = TRUE)) |>
-  ggplot(aes(log(numb_dollar), neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) +
-  geom_boxplot(show.legend = FALSE) +
-  theme_minimal() +
-  labs(
-    y = "New York neighborhoods",
-    x = "(logarithmic) Listing prices",
-    title = "Airbnb listing prices within New York neighborhoods"
-  ) +
-  scale_x_continuous(labels = label_dollar(scale_cut = cut_short_scale()))
-```
-
-# New changes to repo
