@@ -38,7 +38,7 @@ data <- data |>
 df_location_price <- data |>
   select(
     latitude, longitude, neighbourhood, neighbourhood_cleansed,
-    neighbourhood_group_cleansed, price
+    neighbourhood_group_cleansed, price, room_type
   ) |>
   mutate(numb_dollar = as.numeric(gsub("\\$|,", "", price)))
 write.csv(df_location_price, file='data/location_price.csv', row.names=FALSE)
@@ -235,17 +235,31 @@ accept <- accept |>
   # Change super host column to categorical variable
   mutate(host_is_superhost = if_else(host_is_superhost == "TRUE", "Superhosts", "Not Superhost"))
 
-# Plot listings versus price dataset
-ggplot(host_list,
-  mapping = aes(x = avg_price_host, y = host_listings_count)
-) +
-  geom_point() +
-  theme_minimal() +
-  scale_x_continuous(limits = quantile(host_list$price, c(0.1, 0.95))) +
-  labs(
-    title = "# of listings vs average price",
-    x = "Average price (per host)",
-    y = "# of listings (per host)"
-  )
+write.csv(accept, file = 'data/accept.csv', row.names = FALSE)
   
 ```
+
+
+```{r}
+# Create a dataframe for price and room type
+room_type_price <- data |>
+  select(id, price, room_type)
+
+write.csv(room_type_price, file = 'data/room_type_price.csv', row.names = FALSE)
+
+# Create a dataframe for price and ratings
+ratings_price <- data |>
+  select(id, price, review_scores_rating) |>
+  drop_na()
+
+write.csv(ratings_price, file = 'data/ratings_price.csv', row.names = FALSE)
+
+# Create a dataframe from price and number of bedrooms
+bedroom_price <- data |>
+  select(id, price, bedrooms) |>
+  drop_na()
+
+write.csv(bedroom_price, file = 'data/bedroom_price.csv', row.names = FALSE)
+
+```
+
