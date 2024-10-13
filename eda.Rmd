@@ -1,0 +1,86 @@
+---
+title: "EDA"
+author: "Andre Sealy"
+date: "2024-10-12"
+output: html_document
+---
+
+```{r}
+df_location_price |>
+  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc = TRUE)) |>
+  ggplot(aes(neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) +
+  geom_bar(show.legend = FALSE) +
+  labs(
+    x = "New York neighborhoods",
+    y = "Count",
+    title = "Priced Airbnb listing count within New York neighborhoods"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+df_location_price |>
+  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc=TRUE)) |>
+  filter(numb_dollar < 500) |>
+  ggplot(aes(numb_dollar, neighbourhood_group_cleansed, fill = neighbourhood_group_cleansed)) + 
+  geom_boxplot(show.legend = FALSE) +
+  theme_minimal() + 
+  labs(
+    y = "New York neighborhoods",
+    x = "Listing prices",
+    title = "Airbnb listing prices within New York neighborhoods"
+  ) +
+  scale_x_continuous(labels = label_dollar(scale_cut = cut_short_scale()))
+```
+
+```{r}
+df_location_price |>
+  mutate(neighbourhood_group_cleansed = fct_reorder(neighbourhood_group_cleansed, numb_dollar, .desc=TRUE)) |>
+  filter(numb_dollar < 500) |>
+  ggplot(aes(numb_dollar, fill= neighbourhood_group_cleansed)) +
+  geom_histogram(show.legend = FALSE, binwidth = 8) +
+  facet_wrap(facet = vars(neighbourhood_group_cleansed)) +
+  labs(
+    y = "Count",
+    x = "Listing prices",
+    title = "Airbnb listing prices within New York neighborhood (< $500/night)"
+  ) +
+  scale_x_continuous(labels = label_dollar(scale_cut = cut_short_scale())) +
+  theme_minimal()
+```
+
+```{r}
+room_type_price <- read.csv('data/room_type_price.csv')
+
+room_type_price |>
+  group_by(room_type) |>
+  ggplot(aes(x = room_type, y = price)) +
+  geom_boxplot() +
+  scale_y_continuous(limits = quantile(room_type_price$price, c(0.1, 0.9),  na.rm=TRUE)) +
+  labs(x = "Room Type",y = "Price") +
+  theme_minimal()
+```
+```{r}
+room_type_price |>
+  group_by(room_type) |>
+  count() |>
+  ggplot(aes(x = room_type, y = n)) +
+  geom_col() +
+  labs(
+    x="Room types",
+    y="Count"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+bedroom_price |>
+  ggplot(aes(x=bedrooms)) +
+  geom_histogram() +
+  labs(
+    x = "Number of bedrooms",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
