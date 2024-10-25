@@ -1,0 +1,157 @@
+---
+title: "Project - Progress Report"
+author: "Umar Farouk"
+date: "2024-10-13"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(fitdistrplus)
+library(knitr)
+
+# Load your data
+airbnb.newyork <- read.csv("C:/Applied Statistics/Assignment - 3/Assignment 3 - Applied Statistics/Project Assignment/listings.csv")
+
+# Convert price to numeric, handling any non-numeric values
+airbnb.newyork$price <- as.numeric(as.character(airbnb.newyork$price))
+
+# Check for any NA values introduced by conversion
+if (any(is.na(airbnb.newyork$price))) {
+  airbnb.newyork <- airbnb.newyork %>% filter(!is.na(price))
+}
+
+airbnb.newyork <- airbnb.newyork %>%
+  group_by(room_type) %>%
+  mutate(reviews_per_month = ifelse(is.na(reviews_per_month), 
+                                    mean(reviews_per_month, na.rm = TRUE), 
+                                    reviews_per_month))
+
+# Remove rows with NA in price or reviews_per_month
+airbnb.newyork <- airbnb.newyork %>% filter(!is.na(price) & !is.na(reviews_per_month))
+```
+
+
+```{r}
+#Summary Statistics
+
+
+summary_stats <- airbnb.newyork %>%
+  summarise(
+    Mean_Price = mean(price),
+    Median_Price = median(price),
+    Min_Price = min(price),
+    Max_Price = max(price),
+    SD_Price = sd(price),
+    Mean_Reviews = mean(reviews_per_month),
+    Median_Reviews = median(reviews_per_month),
+    Min_Reviews = min(reviews_per_month),
+    Max_Reviews = max(reviews_per_month),
+    SD_Reviews = sd(reviews_per_month)
+  )
+
+print("Summary Statistics:")
+print(summary_stats)
+```
+
+
+```{r}
+# Plotting Histograms and Boxplots
+ggplot(airbnb.newyork, aes(x = price)) +
+  geom_histogram(bins = 10, fill = "purple", alpha = 0.8) +
+  labs(title = "Price Distribution", x = "Price", y = "Frequency") +
+  theme_minimal()
+ggsave("Price_Distribution_Histogram.png")
+
+ggplot(airbnb.newyork, aes(x = reviews_per_month)) +
+  geom_histogram(bins = 10, fill = "green", alpha = 0.8) +
+  labs(title = "Reviews per Month Distribution", x = "Reviews per Month", y = "Frequency") +
+  theme_minimal()
+ggsave("Reviews_Distribution_Histogram.png")
+
+ggplot(airbnb.newyork, aes(x = neighbourhood_group, y = price)) +
+  geom_boxplot() +
+  labs(title = "Price Distribution by Neighborhood", y = "Price", x = "Neighborhood") +
+  theme_minimal()
+ggsave("Price_by_Neighborhood_Boxplot.png")
+
+ggplot(airbnb.newyork, aes(x = room_type, y = price)) +
+  geom_boxplot() +
+  labs(title = "Price Distribution by Room Type", y = "Price", x = "Room Type") +
+  theme_minimal()
+ggsave("Price_by_Room_Type_Boxplot.png")
+
+ggplot(airbnb.newyork, aes(x = reviews_per_month, y = price, color = neighbourhood_group)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Price vs. Reviews per Month by Neighborhood", y = "Price", x = "Reviews per Month") +
+  theme_minimal()
+ggsave("Price_vs_Reviews_Scatterplot.png")
+```
+
+
+```{r}
+# Fit Normal Distribution
+fit <- fitdist(airbnb.newyork$price, "norm")
+print(summary(fit))
+
+# Confidence Intervals
+price_ci <- t.test(airbnb.newyork$price)$conf.int
+print(paste("Confidence Interval for Price: ", paste(round(price_ci, 2), collapse = " to ")))
+
+reviews_ci <- t.test(airbnb.newyork$reviews_per_month)$conf.int
+print(paste("Confidence Interval for Reviews per Month: ", paste(round(reviews_ci, 2), collapse = " to ")))
+
+# ANOVA
+anova_results <- aov(price ~ room_type, data = airbnb.newyork)
+print(summary(anova_results))
+
+post_hoc <- TukeyHSD(anova_results)
+print(post_hoc)
+
+# Linear Regression Model
+lm_model <- lm(price ~ reviews_per_month + room_type + neighbourhood_group, data = airbnb.newyork)
+summary(lm_model)
+
+ggplot(airbnb.newyork, aes(x = reviews_per_month, y = price)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, color = "orange") +
+  labs(title = "Linear Regression of Price on Reviews per Month", y = "Price", x = "Reviews per Month") +
+  theme_minimal()
+ggsave("Linear_Regression_Plot.png")
+```
+
+
+```{r}
+# Save Summary Statistics
+report <- data.frame(
+  Statistic = c("Mean Price", "Median Price", "Min Price", "Max Price", "SD Price", 
+                "Mean Reviews", "Median Reviews", "Min Reviews", "Max Reviews", "SD Reviews"),
+  Value = c(summary_stats$Mean_Price, summary_stats$Median_Price, summary_stats$Min_Price, 
+            summary_stats$Max_Price, summary_stats$SD_Price, summary_stats$Mean_Reviews, 
+            summary_stats$Median_Reviews, summary_stats$Min_Reviews, summary_stats$Max_Reviews, 
+            summary_stats$SD_Reviews)
+)
+
+write.csv(report, "EDA_Summary_Statistics.csv", row.names = FALSE)
+print("Report saved as EDA_Summary_Statistics.csv")
+
+```
+
+```{r}
+#Summary Report
+#This report analyzes Airbnb pricing in New York City, focusing on different room types and guest engagement metrics. The #findings reveal significant price variations, with 'Entire home/apt' averaging $290, 'Hotel room' at $452, 'Private room' #at $155, and 'Shared room' at $100.Please remember the following text.
+#The data also reveals a remarkable range of prices within each category. For instance, the maximum price for an "Entire #home/apt" listing peaks at an astonishing $15,618.00, while "Private room" listings can reach extremes of $100,000.00. #Such outlier values point to unique offerings that can skew average price metrics. Furthermore, the standard deviations #indicate substantial price variability, particularly within the "Private room" category, which has a standard deviation #of $1,488.00. This wide dispersion suggests that while most listings are competitively priced, a few exceptional listings #command significantly higher prices, likely due to unique features or premium locations.
+#Guest engagement metrics, measured through average reviews per month, are relatively low across all room types. The #"Entire home/apt" category averages 1.19 reviews per month, while "Hotel room" listings show a mean of 1.04. This trend #suggests potential challenges in attracting guest feedback, which is crucial for maintaining visibility and #competitiveness in the market. Enhanced marketing strategies and improved guest experiences may be necessary to encourage #higher review counts, which can positively influence pricing and overall occupancy rates.
+
+#The visual representations of the data, including histograms and boxplots, further elucidate pricing patterns. The #histogram illustrating price distribution reveals a right-skewed pattern, indicating that while many listings are priced #in lower ranges, a select few attract significantly higher prices. This phenomenon may reflect a market segment willing #to pay a premium for distinctive or luxury accommodations. Boxplots comparing prices across neighborhoods and room types #highlight substantial disparities, emphasizing the influence of location on pricing strategies. Listings in Manhattan, #for example, tend to be more expensive than those in less central areas, underscoring the premium associated with prime locations.
+#A linear regression analysis was conducted to quantify relationships among the variables influencing pricing. Despite a #low R-squared value of 0.0082—indicating that only a small portion of the variability in price is explained by the #model—certain coefficients stand out. The positive estimate for "room_typeHotel room" suggests that hotel rooms generally #command higher prices compared to "Entire home/apt" listings, while "Private room" and "Shared room" categories are #associated with lower average prices. This finding emphasizes the nuanced pricing landscape shaped by room type and #location.
+#Additionally, confidence intervals for both price and reviews per month provide insights into the reliability of these #metrics. The confidence interval for price, ranging from $219.65 to $246.13, indicates a reasonable expectation for #market pricing. For reviews per month, the confidence interval between $1.21 and $1.26 reinforces the notion of modest #guest engagement across the board.
+#An analysis of variance (ANOVA) confirmed statistically significant differences in pricing among room types, with a #p-value of less than 2e-16. The subsequent Tukey's HSD test identified specific significant comparisons, particularly #between "Hotel room" and "Entire home/apt," as well as "Private room" and "Entire home/apt." These results underline the #importance of understanding how room type influences pricing in this competitive market.
+#In conclusion, this detailed analysis of Airbnb listings in New York City highlights the intricate dynamics of pricing #influenced by room type, neighborhood, and guest engagement. While certain listings command premium prices, there is an #evident opportunity for hosts to enhance guest experiences and encourage higher review counts. Implementing such #strategies could lead to improved pricing power and occupancy rates, ultimately contributing to the success of Airbnb #hosts in this competitive environment. 
+```
+
+
+
