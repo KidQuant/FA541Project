@@ -1,0 +1,142 @@
+---
+title: "Airbnb Pricing Report"
+author: "Umar Farouk"
+date: "2024-11-13"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(fastDummies)  # For one-hot encoding
+
+# Load the dataset
+file_path <- "C:/Applied Statistics/Assignment - 3/Assignment 3 - Applied Statistics/Project Assignment/listings.csv"
+if (!file.exists(file_path)) {
+  stop("File does not exist!")
+}
+airbnb.newyork <- read.csv(file_path)
+airbnb.newyork$price <- as.numeric(as.character(airbnb.newyork$price))
+
+# Handle missing price values
+if (any(is.na(airbnb.newyork$price))) {
+  airbnb.newyork <- airbnb.newyork %>% filter(!is.na(price))
+}
+
+# Handle missing reviews_per_month by replacing NA with the mean of reviews_per_month
+airbnb.newyork <- airbnb.newyork %>% 
+  group_by(room_type) %>% 
+  mutate(reviews_per_month = ifelse(is.na(reviews_per_month), 
+                                    mean(reviews_per_month, na.rm = TRUE), 
+                                    reviews_per_month))
+
+# Filter out rows where price or reviews_per_month is NA
+airbnb.newyork <- airbnb.newyork %>% filter(!is.na(price) & !is.na(reviews_per_month))
+
+# Data Preprocessing - Convert room_type and neighbourhood_group to factor variables
+airbnb.newyork$room_type <- as.factor(airbnb.newyork$room_type)
+airbnb.newyork$neighbourhood_group <- as.factor(airbnb.newyork$neighbourhood_group)
+
+# Apply One-hot encoding for room_type and neighbourhood_group
+airbnb.newyork <- fastDummies::dummy_cols(airbnb.newyork, select_columns = c("room_type", "neighbourhood_group"))
+
+# Remove original categorical columns after encoding
+airbnb.newyork <- airbnb.newyork[, !(names(airbnb.newyork) %in% c("room_type", "neighbourhood_group"))]
+
+# Summary Statistics
+summary_stats <- airbnb.newyork %>%
+  summarise(
+    Mean_Price = mean(price),
+    Median_Price = median(price),
+    Min_Price = min(price),
+    Max_Price = max(price),
+    SD_Price = sd(price),
+    Mean_Reviews = mean(reviews_per_month),
+    Median_Reviews = median(reviews_per_month),
+    Min_Reviews = min(reviews_per_month),
+    Max_Reviews = max(reviews_per_month),
+    SD_Reviews = sd(reviews_per_month)
+  )
+print("Summary Statistics:")
+print(summary_stats)
+
+# Linear Regression Analysis - Dependent variable: price, Independent variables: room_type and neighbourhood_group
+regression_model <- lm(price ~ `room_type_Entire home/apt` + `room_type_Hotel room` + 
+                         `room_type_Private room` + `room_type_Shared room` + 
+                         `neighbourhood_group_Bronx` + `neighbourhood_group_Brooklyn` + 
+                         `neighbourhood_group_Manhattan` + `neighbourhood_group_Queens` + 
+                         `neighbourhood_group_Staten Island`, 
+                       data = airbnb.newyork)
+
+# Summary of the regression model
+print("Linear Regression Model Summary:")
+print(summary(regression_model))
+
+# Model Coefficients and R-squared
+print("Model Coefficients:")
+print(coef(regression_model))
+
+print("R-squared:")
+print(summary(regression_model)$r.squared)
+```
+
+
+```{r}
+# Residual Analysis
+residuals <- residuals(regression_model)
+
+# Plotting residuals to check for any patterns
+par(mfrow = c(1, 2)) # Set up two plots side by side
+plot(regression_model$fitted.values, residuals, 
+     main = "Residuals vs Fitted Values", 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     pch = 16, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+grid()
+
+# Q-Q plot for residuals to check for normality
+qqnorm(residuals, main = "Q-Q Plot of Residuals")
+qqline(residuals, col = "red", lwd = 2)
+
+# Confidence Intervals for Model Coefficients
+print("Confidence Intervals for Model Coefficients:")
+print(confint(regression_model))
+```
+
+
+```{r}
+# Summary Report: Linear Regression Analysis on Airbnb New York Listings
+#
+# This analysis investigates the factors influencing the price of Airbnb listings in New York, using a linear regression model. 
+# The primary aim was to understand how various room types and neighbourhood groups contribute to the variation in listing prices. 
+# The dataset, obtained from Airbnb, was preprocessed to handle missing values and categorical variables, which were converted to 
+# factors and one-hot encoded.
+#
+# The regression model included key variables such as room type (Entire home/apt, Hotel room, Private room, and Shared room) and 
+# neighbourhood group (Bronx, Brooklyn, Manhattan, Queens, Staten Island). The analysis revealed significant relationships 
+# between the listing price and certain predictors. Notably, "Hotel room" and "Entire home/apt" were associated with substantial 
+# increases in price, with coefficients of 274.73 and 158.09, respectively. Manhattan also showed a strong positive relationship 
+# with price, with an increase of 158.50 compared to the reference neighbourhood group. However, other factors such as "Private room" 
+# and "Shared room" as well as certain neighbourhood groups like the Bronx and Queens had limited or no significant effect on pricing.
+#
+# The model's R-squared value was quite low at 0.00816, indicating that only a small portion of the variance in listing prices 
+# is explained by the included variables. This suggests the presence of additional unaccounted-for factors influencing the price of 
+# Airbnb listings, such as amenities, review scores, or geographical location specifics. The low R-squared also points to potential 
+# multicollinearity among some predictors, particularly with regard to neighbourhood group variables, as indicated by the removal 
+# of certain categories (e.g., "Shared room" and "Staten Island") due to singularities in the regression model.
+#
+# Residual analysis showed no major violations of model assumptions. The residuals appeared evenly distributed around zero, and 
+# the Q-Q plot indicated that the residuals followed a normal distribution. While the model fit could be improved by incorporating 
+# additional features such as listing amenities, review scores, and geographical data, the current analysis offers valuable 
+# insights into the key factors affecting Airbnb prices in New York.
+#
+# Overall, while the model provides some useful insights into the price determinants for Airbnb listings, further refinement 
+# through additional variables and possibly more advanced modeling techniques would likely enhance its explanatory power and 
+# predictive accuracy.
+
+```
+
