@@ -5,9 +5,6 @@ date: "2024-11-14"
 output: pdf_document
 ---
 
-# Project Progress Update 
-
-**At this time select two quantitative variables from your dataset and perform a regression analysis between the two variables. Please check the residuals and perform all the residual checks similar to the examples in the lecture. Recall there are 4 types of relations you may investigate from the perspective of analytics. If the regression analysis does not work in your case please do a two way table analysis. Please mention any issues that you need to overcome. For this update please present the questions that will be addressed and talk about the model(s) that you envision using.**
 
 ```{r setup, include=FALSE, echo=FALSE}
 library(tidyverse)
@@ -20,19 +17,11 @@ library(car)
 
 ```
 
-A good thing about analyzing Airbnb prices is that there is near limitless amount of comparisons and statistical with a 37,541 x 75 dataset. This allows us to do more intricate statistical analysis to find unique relationships to discover the most important relationships. However, despite all of this data, the two features that Airbnb users see the most, both host and guest alike, is the price and the host rating.
-
-Host worry about setting the right price because of competition and guest worry about paying too much for listings of similar quality; which is also why rating is very important. Ratings are a significant factor for every Airbnb listing, because higher ratings will attract more potential guest.
-
-The question is: Is there a relationship between the rating of the listing and the price? Can we expect listing with higher prices to have higher ratings? Our intuitions says "yes" but what does the data say. We have a subset of the original `listings.csv` dataset that is specifically geared towards this relationship.
-
-
 ```{r, warning=FALSE, echo=FALSE, message=FALSE}
 data <- read.csv('ratings_price.csv')
 head(data)
 ```
 
-So we have two quantitative variables: `price` and `review_scores_rating` (the number of stars in a listing). Before running a regression analysis for these variables, we can plot the histogram to show the distribution of both.
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 data <- data %>% 
@@ -42,7 +31,7 @@ ggplot(data, aes(x = price)) +
   geom_histogram(bins = 40) + 
    ggtitle("Distribution of Price")
 ```
-I've only considered prices 500 and below to remove listings that are clearly out of reach for the vast majority of Airbnb users. Regardless, we can see that prices skew mostly to the right in the NYC area.
+
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 ggplot(data, aes(x = review_scores_rating)) + 
@@ -50,34 +39,24 @@ ggplot(data, aes(x = review_scores_rating)) +
    ggtitle("Distribution of Ratings")
 ```
 
-The distribution of ratings is the complete opposite, which is skewed towards the left. Even if we remove these outliers, we would still expect ratings to be skewed leftward, as it's pretty rare (though not impossible) to find plenty of listings that are below 4. Host are incentivized to keep their ratings high; not only to find potential new guest, but to remain in good standing for the terms and conditions for the listing remaining on the Airbnb market.
-
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 ggplot(data = data, aes(x = review_scores_rating, y = price))+ 
   geom_jitter(color="steelblue4") + 
   ggtitle("Distribution of Price According to Review")
 ```
-The scatter plot shows the relationship between the `review_scores_rating` and `price`. At cursory glance, it does look like there is some sort of relationship. The points clustered on the right shows that listings that are rated higher are more likely to have higher prices. We don't see the same clustering for the 1, 2, and 3 star ratings. Although it is possible to find lower-quality listings with higher prices, it's not the norm for the platform.
-
-## Regression Analysis
-
-So now we will perform the regression analysis, both with normal prices and log prices.
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 r_reg <- lm(data=data, price~review_scores_rating)
 summary(r_reg)
 
 ```
-We can check the coefficients for statistical significance, which checks to see if the intercept or at least one of the coefficients are equal to zero. For the intercept, we see a p-value of $2e-16$ and the `review_scores_right` coefficient is $1.52e-09$, so both terms are statistically signficant.
-
-We can also plot this relationship
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 plot(data$review_scores_rating, data$price, xlab='Ratings', ylab='Price')
 abline(r_reg, col='red')
 ```
-As we can see, there is a positive relationship, but it's not very predictive. We can use a log transformation to capture this relationship better.
+
 
 ```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
 data <- data %>% 
@@ -88,22 +67,26 @@ r_log_reg <- lm(data=data, log_price~review_scores_rating)
 plot(data$review_scores_rating, data$log_price, xlab='Ratings', ylab='Log Price')
 abline(r_log_reg, col='red')
 ```
-As we can see, the log prices seems to fit the data better. We can check the four types of residual analysis for this model, which is the normal residual plot, Q-norm residuals, Standardize residual plot, and the leverage plot.
+
 
 ```{r}
 par(mfrow=c(2,2))
 plot(r_log_reg)
 ```
-The residual plot shows a scatter plot of how well the model fits the data by displaying the difference between actual and predicted values of the data. If the resduals are normally distributed, we should see a random plot of values all across the plot. As we see, there is a systematic nature to the residuals of the plot. This would suggest that perhaps a non-linear plot may be better for this model overall.
 
-The Q-norm plots compares the distribution of two sets of data to assess if they come from the same theoretical distribution. As we can see, the data starts off representing a normal distribution but then skews on higher end of the quartiles, which pretty much tells us what we already know: the data is very asysmetrical. 
 
-The standardized residuals plot is the same as the regular residual plot, except that it makes it easier for us to interpret. It measures the deviation of observed values from expected values, and the scales based on the normal distribution. Most of the residuals are between $-1$ and $1$, so we don't have much (if any) significantly large deviations from the linear regression model and the actual observations.
+```{r}
+data <- read.csv('data/listings.csv')
 
-The last plot is the residuals vs leverage. The leverage of an observation is based on how much the observation's value on the predictor variable differs from the mean of the predictor variable. The greater the observation's leverage, the more potential it has to be an influential observation.
+data <- data |>
+  mutate(price = parse_number(price))
 
-As we can see, the leverage threshold (which determines the observations that are influential in the model) does not appear in the plot (even if scaled). Therefore, we can conclude that there are no observations that are influential in the model that we developed.
+review_reg <- lm(formula = price ~ review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication + review_scores_location + review_scores_value, data=data)
 
-Since we have a plethora of data, I don't think we will run into any particular issues with establishing.a reltionship with any features in particular. I think the main issue that we will run into involves cleaning the data, since the dataset in equation has a significant amount of categorical variables.
+summary(review_reg)
+```
 
-Also, since the distribution of much of the data is non-linear, we will most likely end up using a polynomial regression or logistic regression (especially for the categorical variables) 
+```{r}
+data$reviews
+```
+
