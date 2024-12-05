@@ -1,0 +1,50 @@
+---
+title: "ANOVA"
+author: "Andre Sealy"
+date: "2024-11-29"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(skimr)
+library(jsonlite)
+library(scales)
+library(tidymodels)
+library(lubridate)
+library(Hmisc)
+```
+
+```{r}
+rooms <- read.csv("data/room_type_price.csv")
+rooms %>% group_by(room_type) %>%
+  drop_na() %>% 
+  summarise(Mean_price = mean(price))
+```
+
+```{r}
+rooms <- rooms %>%
+  drop_na()
+
+hotel <- subset(rooms, room_type=="Hotel room")
+shapiro.test(hotel$price)
+```
+
+```{r}
+entire <- subset(rooms, room_type=="Entire home/apt")
+shapiro.test(entire$price[0:5000])
+```
+```{r}
+lm.model <- lm(price ~ room_type, data = rooms)
+summary(lm.model)
+```
+
+```{r}
+anova(lm.model)
+```
+```{r}
+lm.av <- aov(lm.model)
+tukey.test <- TukeyHSD(lm.av)
+plot(tukey.test)
+```
+
