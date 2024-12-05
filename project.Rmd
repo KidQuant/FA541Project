@@ -5,19 +5,97 @@ date: "2024-10-11"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=False}
 library(tidyverse)
 library(skimr)
 library(jsonlite)
 library(scales)
 library(tidymodels)
 library(lubridate)
+library(car)
+
 ```
 
-## R Markdown
+A good thing about analyzing Airbnb prices is that there is near limitless amount of comparisons and statistical with a 37,541 x 75 dataset. This allows us to do more intricate statistical analysis to find unique relationships to discover the most important relationships. However, despite all of this data, the two features that Airbnb users see the most, both host and guest alike, is the price and the host rating.
+
+Host worry about setting the right price because of competition and guest worry about paying too much for listings of similar quality; which is also why rating is very important. Ratings are a significant factor for every Airbnb listing, because higher ratings will attract more potential guest.
+
+The question is: Is there a relationship between the rating of the listing and the price? Can we expect listing with higher prices to have higher ratings? Our intuitions says "yes" but what does the data say. We have a subset of the original `listings.csv` dataset that is specifically geared towards this relationship.
+
 
 ```{r}
-data <- read.csv('listings.csv')
+data <- read.csv('data/ratings_price.csv')
 head(data)
+```
+
+```{r}
+data <- data %>% 
+  filter(price<500) 
+
+ggplot(data, aes(x = price)) + 
+  geom_histogram(bins = 40) + 
+   ggtitle("Distribution of Price")
+```
+
+```{r}
+ggplot(data, aes(x = review_scores_rating)) + 
+  geom_histogram(bins = 40) + 
+   ggtitle("Distribution of Price")
+```
+
+
+```{r}
+ggplot(data = data, aes(x = review_scores_rating, y = price))+ 
+  geom_jitter(color="steelblue4") + 
+  ggtitle("Distribution of Price According to Review")
+```
+
+
+```{r}
+data <- data %>% 
+  mutate(log_price = log(price))
+
+r_reg <- lm(data=data, log_price~review_scores_rating)
+summary(r_reg)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(r_reg)
+```
+
+
+
+```{r}
+crPlots(r_reg)
+```
+
+```{r}
+funnel=function(reg.object)
+{
+#function created by Alan Lee
+# diagnostic plots for detecting non-constant variance
+        # plots log sds vs log means
+        # and then squared residuals versus fitted values
+        # returns a smoothed version of the plot as an
+        # estimate of the variance function
+        layout(1,2)
+        pred<-fitted(reg.object)
+        res<-residuals(reg.object)
+        cut.points<-quantile(pred,c(0.,.2,.4,.6,.8,1.0)) + c(-0.01,0,0,0,0,1.01)
+        group<-cut(pred,cut.points)
+        log.means<-log(tapply(pred+res,group,mean))
+        log.sds<-log(sqrt(tapply(pred+res,group,var)))
+        plot(log.means,log.sds,xlab="Log means",ylab="Log std. errors")
+        res.sq<-res^2
+        plot(pred,res.sq,ylab="Squared residuals",xlab="Fitted values")
+        low.stuff<-loess(res.sq~pred,span=1)
+        lines(sort(pred),fitted(low.stuff)[order(pred)],lty=2)
+        cat("Slope:",lm(log.sds~log.means)$coef[2],"\n")
+        layout(1,1)
+        invisible(fitted(low.stuff))
+}
+
+funnel(r_reg)
 ```
 
