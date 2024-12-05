@@ -1,0 +1,92 @@
+---
+title: "Assignment 8"
+author: "Andre Sealy"
+date: "2024-11-14"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE, echo=FALSE}
+library(tidyverse)
+library(skimr)
+library(jsonlite)
+library(scales)
+library(tidymodels)
+library(lubridate)
+library(car)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+data <- read.csv('ratings_price.csv')
+head(data)
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+data <- data %>% 
+  filter(price<=500) 
+
+ggplot(data, aes(x = price)) + 
+  geom_histogram(bins = 40) + 
+   ggtitle("Distribution of Price")
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+ggplot(data, aes(x = review_scores_rating)) + 
+  geom_histogram(bins = 40) + 
+   ggtitle("Distribution of Ratings")
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+ggplot(data = data, aes(x = review_scores_rating, y = price))+ 
+  geom_jitter(color="steelblue4") + 
+  ggtitle("Distribution of Price According to Review")
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+r_reg <- lm(data=data, price~review_scores_rating)
+summary(r_reg)
+
+```
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+plot(data$review_scores_rating, data$price, xlab='Ratings', ylab='Price')
+abline(r_reg, col='red')
+```
+
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE, out.width="50%", fig.align="center"}
+data <- data %>% 
+  mutate(log_price = log(price))
+
+r_log_reg <- lm(data=data, log_price~review_scores_rating)
+
+plot(data$review_scores_rating, data$log_price, xlab='Ratings', ylab='Log Price')
+abline(r_log_reg, col='red')
+```
+
+
+```{r}
+par(mfrow=c(2,2))
+plot(r_log_reg)
+```
+
+
+```{r}
+data <- read.csv('data/listings.csv')
+
+data <- data |>
+  mutate(price = parse_number(price))
+
+review_reg <- lm(formula = price ~ review_scores_accuracy + review_scores_cleanliness + review_scores_checkin + review_scores_communication + review_scores_location + review_scores_value, data=data)
+
+summary(review_reg)
+```
+
+```{r}
+data$reviews
+```
+
