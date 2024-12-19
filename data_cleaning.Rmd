@@ -127,6 +127,7 @@ write.csv(listing_esential_amenitites, "data/listing_essential_amenities.csv", r
 
 ```{r}
 # Dataframe with all variables to do with host characteristics
+
 host_char <- data |>
   select(
     host_id,
@@ -175,6 +176,7 @@ superhost <- host_char |>
     host_identity_verified = if_else(host_identity_verified == "TRUE", 1, 0),
     host_has_profile_pic = if_else(host_has_profile_pic == "TRUE", 1, 0)
   )
+superhost
 
 write.csv(superhost, file = 'data/superhost.csv', row.names = FALSE)
 ```
@@ -235,8 +237,28 @@ accept <- accept |>
   # Change super host column to categorical variable
   mutate(host_is_superhost = if_else(host_is_superhost == "TRUE", "Superhosts", "Not Superhost"))
 
+
 write.csv(accept, file = 'data/accept.csv', row.names = FALSE)
   
+```
+
+```{r}
+ggplot(accept,
+  mapping = aes(x = price, y = host_acceptance_rate)
+) +
+  geom_col(width = 15, fill = "lightblue") +
+  facet_wrap(vars(host_is_superhost)) +
+  theme_bw() +
+  scale_x_continuous(
+    limits = quantile(accept$price, c(0.1, 0.95)),
+    labels = label_dollar()
+  ) +
+  scale_y_continuous(labels = label_percent(scale = .001)) +
+  labs(
+    title = "Host acceptance rate vs price",
+    x = "Average price (per host)",
+    y = "Host acceptance rate"
+  )
 ```
 
 

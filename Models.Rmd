@@ -1,0 +1,128 @@
+---
+title: "models"
+author: "Andre Sealy"
+date: "2024-12-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(skimr)
+library(jsonlite)
+library(scales)
+library(tidymodels)
+library(lubridate)
+library(Hmisc)
+library(MASS)
+library(StepReg)
+library(mgcv)
+library(VGAM)
+library(caret)
+library(glmnet)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+model_data <- read.csv('data/model_data.csv')
+
+lm.model <- lm(log_price ~ room_type + accommodates + bathrooms + bedrooms + minimum_nights + availability_365 + number_of_reviews + review_scores_rating + review_scores_accuracy + review_scores_value + wifi + parking + dryer + washer + kitchen + room_type + property_agg + superhost_t + bedrooms:property_agg, data = model_data)
+
+summary(lm.model)
+```
+
+
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+backward_model <- step(lm.model, direction="backward")
+```
+
+```{r}
+backward_model <- lm(log_price ~ parking + review_scores_value + review_scores_rating + number_of_reviews + dryer + availability_365 + bedrooms:property_agg + kitchen + washer + minimum_nights + accommodates + room_type, data=model_data)
+summary(backward_model)
+```
+
+```{r}
+res$overview
+```
+```{r}
+var_imp <- varImp(backward_model, scale=FALSE)
+
+write.csv(var_imp, file = 'data/var_imp.csv', row.names = FALSE)
+
+```
+
+
+```{r}
+x <- model.matrix(log_price ~ room_type + accommodates + bathrooms + bedrooms + minimum_nights + availability_365 + number_of_reviews + review_scores_rating + review_scores_accuracy + review_scores_value + wifi + parking + dryer + washer + kitchen + room_type + property_agg + superhost_t + bedrooms:property_agg, data = model_data)[, -1]
+y <- model_data$log_price
+
+ridge_model <- glmnet(x, y, alpha = 0)
+
+# Perform cross-validation to find the best lambda
+cv_ridge <- cv.glmnet(x, y, alpha = 0)
+best_lambda <- cv_ridge$lambda.min
+
+# Fit the ridge regression model with the best lambda
+ridge_model_best <- glmnet(x, y, alpha = 0, lambda = best_lambda)
+
+# Predict the values using the ridge regression model
+predictions <- predict(ridge_model_best, s = best_lambda, newx = x)
+
+# Calculate the R-squared value
+sst <- sum((y - mean(y))^2)
+sse <- sum((predictions - y)^2)
+r_squared <- 1 - sse/sst
+
+print(paste("R-squared for the ridge regression model:", r_squared))
+# Print the coefficients for the ridge regression model
+ridge_coefficients <- coef(ridge_model_best)
+print(ridge_coefficients)
+
+```
+```{r}
+# Plot the ridge regression model
+plot(cv_ridge)
+title("Ridge Regression Model Cross-Validation Plot")
+
+# Plot the coefficients of the ridge regression model
+plot(ridge_model_best, xvar = "lambda", label = TRUE)
+title("Ridge Regression Coefficients Plot")
+
+# Create a lasso regression model using the same data
+lasso_model <- glmnet(x, y, alpha = 1)
+
+# Perform cross-validation to find the best lambda
+cv_lasso <- cv.glmnet(x, y, alpha = 1)
+best_lambda_lasso <- cv_lasso$lambda.min
+
+# Fit the lasso regression model with the best lambda
+lasso_model_best <- glmnet(x, y, alpha = 1, lambda = best_lambda_lasso)
+
+# Predict the values using the lasso regression model
+lasso_predictions <- predict(lasso_model_best, s = best_lambda_lasso, newx = x)
+
+# Calculate the R-squared value
+sst_lasso <- sum((y - mean(y))^2)
+sse_lasso <- sum((lasso_predictions - y)^2)
+r_squared_lasso <- 1 - sse_lasso/sst_lasso
+
+print(paste("R-squared for the lasso regression model:", r_squared_lasso))
+
+# Print the coefficients for the lasso regression model
+lasso_coefficients <- coef(lasso_model_best)
+print(lasso_coefficients)
+
+# Plot the lasso regression model
+plot(cv_lasso)
+title("Lasso Regression Model Cross-Validation Plot")
+
+
+```
+
